@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Periodic Notifications</title>
+</head>
+<body>
+    <h1>Periodic Notifications</h1>
+    <script>
+        // Register the service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js').then(function(registration) {
+                console.log('Service Worker registered with scope:', registration.scope);
+            }).catch(function(error) {
+                console.error('Service Worker registration failed:', error);
+            });
+        }
+
+        // Request notification permission
+        if ('Notification' in window && navigator.serviceWorker) {
+            Notification.requestPermission(function(result) {
+                if (result === 'granted') {
+                    console.log('Permission granted for notifications');
+                } else {
+                    console.error('Permission denied for notifications');
+                }
+            });
+        }
+    </script>
+    <script>
+        // Inline service worker script
+        var serviceWorkerCode = `
+            self.addEventListener('install', event => {
+                console.log('Service Worker installing.');
+                self.skipWaiting();
+            });
+
+            self.addEventListener('activate', event => {
+                console.log('Service Worker activating.');
+                self.clients.claim();
+            });
+
+            // Function to show notification
+            function showNotification(pricePerOz, pricePerGm, pricePerGMINR, updatedAt) {
+                self.registration.showNotification('Gold Price Update', {
+                    body: \`Updated: \${updatedAt}\\nPrice (USD/Oz): \${pricePerOz}\\nPrice (USD/gm): \${pricePerGm}\\nPrice (INR/gm): \${pricePerGMINR}\`,
+                    icon: '/path/to/icon.png' // Optional: Add an icon for the notification
+                });
+            }
+
+            // Function to fetch gold price and show notification
+            async function fetchAndNotify() {
+                try {
+                    var response = await fetch("https://api.gold-api.com/price/XAU");
+                    var data = await response.json();
+                    var pricePerOz = data.price;
+                    var pricePerGm = convertperOzTopergms(pricePerOz);
+                    var pricePerGMINR = await getPriceInINR(pricePerGm);
+                    showNotification(pricePerOz, pricePerGm, pricePerGMINR, data.updatedAtReadable);
+                } catch (error) {
+                    console.error(\`Failed to fetch data: \${error.message}\`);
+                }
+            }
+
+            // Function to convert ounces to grams
+            function convertperOzTopergms(oz) {
+                return oz / 28.3495;
+            }
+
+            // Function to get price in INR
+            async function getPriceInINR(dollars) {
+                try {
+                    var response = await fetch("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json");
+                    var data = await response.json();
+                    return dollars * data.usd.inr;
+                } catch (error) {
+                    console.error(\`Failed to fetch conversion rate: \${error.message}\`);
+                }
+            }
+
+            // Set an interval to fetch data and show notification every 10 seconds
+            setInterval(() => {
+                fetchAndNotify();
+            }, 10000); // 10000 milliseconds = 10 seconds
+        `;
+
+        // Create a Blob from the service worker code
+        var blob = new Blob([serviceWorkerCode], { type: 'application/javascript' });
+
+        // Create a URL for the Blob
+        var serviceWorkerURL = URL.createObjectURL(blob);
+
+        // Register the service worker from the Blob URL
+        navigator.serviceWorker.register(serviceWorkerURL).then(function(registration) {
+            console.log('Service Worker registered with scope:', registration.scope);
+        }).catch(function(error) {
+            console.error('Service Worker registration failed:', error);
+        });
+    </script>
+</body>
+</html>

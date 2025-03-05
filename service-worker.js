@@ -49,4 +49,4 @@ async function getPriceInINR(dollars) {
 // Set an interval to fetch data and show notification every 10 seconds
 setInterval(() => {
     fetchAndNotify();
-}, 10000); // 10000 milliseconds = 10 seconds
+}, 3*600000); // 10000 milliseconds = 10 seconds
